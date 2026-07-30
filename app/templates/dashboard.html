@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}대시보드 · 독서 기록{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>{{ yearly.year }}년 독서</h1>
+  <span class="spacer"></span>
+  <button class="primary" data-open-add>+ 책 추가</button>
+</div>
+
+<div class="grid grid-hero">
+  {# ── 연간 목표 ── #}
+  <div class="card">
+    <div class="card-head">
+      <h2>연간 목표</h2>
+      <span class="spacer"></span>
+      <a class="tiny dim" href="/settings">목표 바꾸기</a>
+    </div>
+
+    {% if yearly.target %}
+      <div style="display:flex;gap:1.2rem;align-items:center;flex-wrap:wrap">
+        <div style="position:relative;flex:none">
+          <div id="year-ring"></div>
+          <div style="position:absolute;inset:0;display:grid;place-items:center;text-align:center">
+            <div>
+              <div class="hero-figure">{{ yearly.done }}</div>
+              <div class="tiny dim">/ {{ yearly.target }}권</div>
+            </div>
+          </div>
+        </div>
+        <div style="flex:1;min-width:180px">
+          <div class="sub">
+            {% if yearly.on_track %}
+              <span class="good strong">계획보다 {{ '%.1f'|format(yearly.ahead) }}권 앞서 있습니다.</span>
+            {% else %}
+              <span class="bad strong">계획보다 {{ '%.1f'|format(-yearly.ahead) }}권 뒤처져 있습니다.</span>
+            {% endif %}
+          </div>
+          <ul class="tiny dim" style="margin:.5rem 0 0;padding-left:1.1rem;line-height:1.8">
+            <li>이 페이스면 연말에 <span class="strong">{{ yearly.projected }}권</span> 예상</li>
+            <li>남은 {{ yearly.remaining }}권 · {{ yearly.days_left }}일
+              {% if yearly.days_per_book %}(<span class="num">{{ yearly.days_per_book }}</span>일에 1권){% endif %}</li>
+            <li>지금쯤 목표선은 {{ yearly.expected_by_now }}권</li>
+          </ul>
+        </div>
+      </div>
+    {% else %}
+      <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+        <div>
+          <div class="hero-figure">{{ yearly.done }}<span class="unit">권</span></div>
+          <div class="tiny dim">올해 완독</div>
+        </div>
+        <div class="notice" style="flex:1;min-width:200px">
+          연간 목표를 정하면 진척도와 예상 권수를 보여드립니다.
+          <a href="/settings">목표 세우기 →</a>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  {# ── 오늘 + 연속 ── #}
+  <div class="card">
+    <div class="card-head"><h2>오늘</h2></div>
+
+    {% if daily.pages_target or daily.minutes_target %}
+      {% if daily.pages_target %}
+        <div class="label">페이지</div>
+        <div style="display:flex;align-items:center;gap:.6rem;margin:.15rem 0 .7rem">
+          <div class="meter thick{% if daily.pages >= daily.pages_target %} done{% endif %}" style="flex:1">
+            <span style="width: {{ daily.pages_pct }}%"></span>
+          </div>
+          <span class="num nowrap sub">{{ '{:,}'.format(daily.pages) }} / {{ daily.pages_target }}p</span>
+        </div>
+      {% endif %}
+      {% if daily.minutes_target %}
+        <div class="label">시간</div>
+        <div style="display:flex;align-items:center;gap:.6rem;margin:.15rem 0 .7rem">
+          <div class="meter thick{% if daily.minutes >= daily.minutes_target %} done{% endif %}" style="flex:1">
+            <span style="width: {{ daily.minutes_pct }}%"></span>
+          </div>
+          <span class="num nowrap sub">{{ daily.minutes }} / {{ daily.minutes_target }}분</span>
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="sub" style="margin-bottom:.7rem">
+        오늘 <span class="strong num">{{ '{:,}'.format(daily.pages) }}p</span>
+        {% if daily.minutes %} · <span class="num">{{ daily.minutes }}분</span>{% endif %}
+        {% if daily.books %} · 책 {{ daily.books }}권{% endif %}
+      </div>
+      <p class="notice tiny" style="margin:0 0 .7rem">
+        하루 목표를 정하면 달성 바와 연속 기록이 켜집니다.
+        <a href="/settings">설정 →</a>
+      </p>
+    {% endif %}
+
+    <div style="display:flex;gap:1.4rem;border-top:1px solid var(--grid);padding-top:.7rem">
+      <div>
+        <div class="label">연속</div>
+        <div class="strong" style="font-size:1.3rem">
+          {{ streak.current }}일 {% if streak.current >= 3 %}🔥{% endif %}
+        </div>
+      </div>
+      <div>
+        <div class="label">최장</div>
+        <div class="strong" style="font-size:1.3rem">{{ streak.longest }}일</div>
+      </div>
+      <div>
+        <div class="label">서재</div>
+        <div class="strong" style="font-size:1.3rem">{{ counts.all }}권</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── 읽는 중 ── #}
+<div class="card">
+  <div class="card-head">
+    <h2>읽는 중</h2>
+    <span class="tiny dim">{{ reading|length }}권</span>
+    <span class="spacer"></span>
+    <a class="tiny dim" href="/library?status=reading">서재에서 보기 →</a>
+  </div>
+
+  {% if reading %}
+    <div class="book-grid">
+      {% for book in reading %}{% include "_partials/book_card.html" %}{% endfor %}
+    </div>
+    <p class="tiny dim" style="margin:.9rem 0 0">
+      현재 페이지를 바꿔 “기록”을 누르면 그날 읽은 만큼이 자동으로 쌓입니다.
+    </p>
+  {% else %}
+    <div class="empty-state">
+      <div class="big">📖</div>
+      <p>읽는 중인 책이 없습니다.</p>
+      <button class="primary" data-open-add>+ 책 추가</button>
+      {% if counts.wishlist %}
+        <p class="tiny" style="margin-top:.8rem">
+          <a href="/library?status=wishlist">읽고싶은 책 {{ counts.wishlist }}권</a> 에서 시작해도 됩니다.
+        </p>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+{# ── 최근 2주 + 최근 기록 ── #}
+<div class="grid grid-2">
+  <div class="card">
+    <div class="card-head"><h2>최근 2주</h2><span class="spacer"></span>
+      <a class="tiny dim" href="/stats">전체 통계 →</a></div>
+    <div class="chart" id="week-chart"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>최근 기록</h2></div>
+    {% if recent_sessions %}
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr><th>날짜</th><th>책</th><th class="num">페이지</th><th class="num">시간</th></tr>
+          </thead>
+          <tbody>
+            {% for s in recent_sessions %}
+              <tr>
+                <td class="num dim">{{ s.log_date[5:] }}</td>
+                <td style="max-width:170px;overflow:hidden;text-overflow:ellipsis">
+                  <a href="/books/{{ s.book_id }}" style="text-decoration:none">{{ s.title }}</a>
+                </td>
+                <td class="num">{{ '{:+,}'.format(s.pages) }}p</td>
+                <td class="num dim">{{ (s.minutes|string + '분') if s.minutes else '–' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty-state tiny">아직 기록이 없습니다. 위에서 진도를 한 번 기록해 보세요.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import { columnChart, progressRing } from '/static/charts.js';
+
+  const week = {{ week|tojson }};
+  columnChart(document.getElementById('week-chart'), {
+    data: week, value: 'pages', label: 'label', unit: 'p', height: 170, labelEvery: 2,
+    tooltip: (d) => `${d.date}<br><span class="t-val">${d.pages.toLocaleString('ko-KR')}p</span>` +
+                    (d.minutes ? ` · ${d.minutes}분` : ''),
+  });
+
+  {% if yearly.target %}
+    progressRing(document.getElementById('year-ring'), {
+      pct: {{ yearly.pct }}, late: {{ 'false' if yearly.on_track else 'true' }},
+    });
+  {% endif %}
+</script>
+{% endblock %}

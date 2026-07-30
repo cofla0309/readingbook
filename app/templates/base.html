@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}독서 기록{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>📚</text></svg>">
+</head>
+<body data-today="{{ today }}" data-aladin-ready="{{ '1' if aladin_ready else '0' }}">
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">📚 <span class="full">독서 기록</span></a>
+    <nav class="nav">
+      <a href="/" class="{{ 'on' if active == 'dashboard' }}">대시보드</a>
+      <a href="/library" class="{{ 'on' if active == 'library' }}">서재</a>
+      <a href="/stats" class="{{ 'on' if active == 'stats' }}">통계</a>
+      <a href="/settings" class="{{ 'on' if active == 'settings' }}">설정</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+{% include "_partials/add_modal.html" %}
+{% include "_partials/finish_modal.html" %}
+
+<script type="module" src="/static/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

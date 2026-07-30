@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}서재 · 독서 기록{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>서재</h1>
+  <span class="spacer"></span>
+  <button class="primary" data-open-add>+ 책 추가</button>
+</div>
+
+<div class="card">
+  <div class="chips" style="margin-bottom:.9rem">
+    {% for key in ['reading', 'done', 'wishlist', 'paused', 'all'] %}
+      <a class="chip {{ 'on' if filter_status == key }}"
+         href="/library?status={{ key }}&sort={{ filter_sort }}{% if filter_q %}&q={{ filter_q }}{% endif %}">
+        {{ '전체' if key == 'all' else status_labels[key] }}
+        <span class="count">{{ counts[key] }}</span>
+      </a>
+    {% endfor %}
+  </div>
+
+  <form method="get" action="/library" class="field-row" style="margin-bottom:1rem">
+    <input type="hidden" name="status" value="{{ filter_status }}">
+    <input type="search" name="q" value="{{ filter_q }}" placeholder="제목 · 저자 · 출판사 검색">
+    <select id="sort-select" name="sort" style="flex:none;width:auto;min-width:130px">
+      <option value="recent" {{ 'selected' if filter_sort == 'recent' }}>최근 순</option>
+      <option value="title" {{ 'selected' if filter_sort == 'title' }}>제목 순</option>
+      <option value="author" {{ 'selected' if filter_sort == 'author' }}>저자 순</option>
+      <option value="progress" {{ 'selected' if filter_sort == 'progress' }}>진도 순</option>
+      <option value="rating" {{ 'selected' if filter_sort == 'rating' }}>별점 순</option>
+      <option value="finished" {{ 'selected' if filter_sort == 'finished' }}>완독일 순</option>
+    </select>
+    <button type="submit" style="flex:none">검색</button>
+  </form>
+
+  {% if books %}
+    {% for b in books %}
+      <div class="book-row">
+        {% if b.cover_url %}
+          <img class="cover" src="{{ b.cover_url }}" alt="" loading="lazy">
+        {% else %}
+          <div class="cover cover-ph">📕</div>
+        {% endif %}
+
+        <div class="body">
+          <div style="display:flex;gap:.5rem;align-items:baseline">
+            <a class="book-title" href="/books/{{ b.id }}">{{ b.title }}</a>
+            <span class="badge {{ b.status }}{{ ' late' if b.due_overdue }}">{{ b.status_label }}</span>
+          </div>
+          <div class="tiny dim">
+            {{ b.author or '저자 미상' }}{% if b.publisher %} · {{ b.publisher }}{% endif %}
+            {% if b.category %} · {{ b.category }}{% endif %}
+          </div>
+
+          {% if b.status == 'done' %}
+            <div class="tiny" style="margin-top:.3rem">
+              {% if b.rating %}<span class="rating-static">{{ '★' * b.rating }}{{ '☆' * (5 - b.rating) }}</span>{% endif %}
+              <span class="dim">
+                {% if b.finished_on %}{{ b.finished_on }} 완독{% endif %}
+                {% if b.total_pages %} · {{ '{:,}'.format(b.total_pages) }}p{% endif %}
+              </span>
+            </div>
+            {% if b.memo %}<div class="tiny dim" style="margin-top:.2rem">“{{ b.memo }}”</div>{% endif %}
+
+          {% elif b.status == 'wishlist' %}
+            <div class="tiny dim" style="margin-top:.3rem">
+              {% if b.total_pages %}{{ '{:,}'.format(b.total_pages) }}p · {% endif %}아직 시작 전
+            </div>
+
+          {% else %}
+            {% if b.has_total %}
+              <div class="meter{{ ' late' if b.due_overdue }}" style="margin-top:.4rem;max-width:340px">
+                <span style="width: {{ b.progress_pct }}%"></span>
+              </div>
+              <div class="tiny dim num" style="margin-top:.25rem">
+                {{ '{:,}'.format(b.current_page) }} / {{ '{:,}'.format(b.total_pages) }}p · {{ b.progress_pct }}%
+                {% if b.due_date %}
+                  · {% if b.due_overdue %}<span class="bad">마감 {{ -b.due_days_left }}일 지남</span>
+                    {% else %}마감 {{ b.due_days_left }}일 전{% endif %}
+                {% endif %}
+              </div>
+            {% else %}
+              <div class="tiny dim" style="margin-top:.3rem">
+                {{ '{:,}'.format(b.current_page) }}p 읽음 · 총 페이지 미입력
+              </div>
+            {% endif %}
+          {% endif %}
+        </div>
+
+        <div class="nowrap" style="display:flex;gap:.3rem;flex:none">
+          {% if b.status == 'wishlist' %}
+            <button class="btn-sm" data-set-status="reading" data-book="{{ b.id }}">읽기 시작</button>
+          {% endif %}
+          <a class="btn btn-sm" href="/books/{{ b.id }}">열기</a>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <div class="big">🔍</div>
+      {% if filter_q %}
+        <p>“{{ filter_q }}” 에 맞는 책이 없습니다.</p>
+        <a class="btn" href="/library?status={{ filter_status }}">검색 지우기</a>
+      {% else %}
+        <p>{{ '전체' if filter_status == 'all' else status_labels[filter_status] }} 칸이 비어 있습니다.</p>
+        <button class="primary" data-open-add>+ 책 추가</button>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

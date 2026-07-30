@@ -1,0 +1,9 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# 가상환경
+.venv/
+
+# 로컬 데이터: 독서 기록 DB, 알라딘 TTB키(config.json), 백업
+data/

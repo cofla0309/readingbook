@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}{{ book.title }} · 독서 기록{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <a class="tiny dim" href="/library?status={{ book.status }}" style="text-decoration:none">← 서재</a>
+  <span class="spacer"></span>
+  {% if book.status != 'reading' %}
+    <button class="btn-sm" data-set-status="reading" data-book="{{ book.id }}">읽는 중으로</button>
+  {% endif %}
+  {% if book.status != 'done' %}
+    <button class="btn-sm" data-set-status="done" data-book="{{ book.id }}">완독 처리</button>
+  {% endif %}
+  {% if book.status not in ('paused', 'done') %}
+    <button class="btn-sm" data-set-status="paused" data-book="{{ book.id }}">중단</button>
+  {% endif %}
+  <button class="btn-sm btn-danger" data-delete-book="{{ book.id }}" data-title="{{ book.title }}">삭제</button>
+</div>
+
+{# ── 헤더 ── #}
+<div class="card" data-book-card>
+  <div style="display:flex;gap:1.1rem;flex-wrap:wrap">
+    {% if book.cover_url %}
+      <img class="cover lg" src="{{ book.cover_url }}" alt="">
+    {% else %}
+      <div class="cover lg cover-ph">📕</div>
+    {% endif %}
+
+    <div style="flex:1;min-width:230px">
+      <div style="display:flex;gap:.5rem;align-items:baseline;flex-wrap:wrap">
+        <h1 style="font-size:1.25rem">{{ book.title }}</h1>
+        <span class="badge {{ book.status }}{{ ' late' if book.due_overdue }}">{{ book.status_label }}</span>
+      </div>
+      <div class="sub" style="margin:.2rem 0 .1rem">{{ book.author or '저자 미상' }}</div>
+      <div class="tiny dim">
+        {{ book.publisher or '' }}{% if book.category %} · {{ book.category }}{% endif %}
+        {% if book.isbn13 %} · ISBN {{ book.isbn13 }}{% endif %}
+      </div>
+
+      <div style="margin-top:.7rem">
+        <span class="label">별점</span>
+        <div class="stars" data-value="{{ book.rating or 0 }}" data-book="{{ book.id }}">
+          <button type="button">☆</button><button type="button">☆</button>
+          <button type="button">☆</button><button type="button">☆</button>
+          <button type="button">☆</button>
+        </div>
+      </div>
+
+      {# ── 진도 ── #}
+      {% if book.has_total %}
+        <div class="meter thick{{ ' late' if book.due_overdue }}{{ ' done' if book.status == 'done' }}"
+             style="margin-top:.8rem">
+          <span style="width: {{ book.progress_pct }}%"></span>
+        </div>
+        <div class="sub num" style="margin-top:.35rem">
+          <span data-now>{{ '{:,}'.format(book.current_page) }}</span> /
+          {{ '{:,}'.format(book.total_pages) }}p ·
+          <span data-pct>{{ book.progress_pct }}</span>% ·
+          <span data-left>{{ '{:,}'.format(book.pages_left) }}p 남음</span>
+        </div>
+      {% else %}
+        <p class="notice warn" style="margin-top:.8rem">
+          총 페이지가 없어 진도율을 계산할 수 없습니다. 아래 “책 정보”에 입력해 주세요.
+        </p>
+      {% endif %}
+
+      {% if book.status != 'done' %}
+        <form class="progress-form" data-progress="{{ book.id }}" data-reload="1">
+          <input type="number" name="current_page" min="0" inputmode="numeric"
+                 value="{{ book.current_page }}" aria-label="현재 페이지">
+          <span class="of">쪽까지</span>
+          <input type="number" name="minutes" min="0" max="1440" inputmode="numeric"
+                 placeholder="분" style="width:4.5rem" aria-label="읽은 시간(분, 선택)">
+          <button type="submit" class="btn-sm primary">기록</button>
+        </form>
+        <p class="tiny dim" style="margin:.35rem 0 0">
+          같은 날 여러 번 기록해도 그날 기록 한 줄로 합쳐집니다. 시간은 선택 입력입니다.
+        </p>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── 마감 계산 ── #}
+  {% if book.due_date and book.status != 'done' %}
+    <div style="border-top:1px solid var(--grid);margin-top:1rem;padding-top:.8rem"
+         class="grid grid-3">
+      <div>
+        <div class="label">마감까지</div>
+        <div class="strong">
+          {% if book.due_overdue %}
+            <span class="bad">{{ -book.due_days_left }}일 지남</span>
+          {% else %}{{ book.due_days_left }}일{% endif %}
+        </div>
+      </div>
+      <div>
+        <div class="label">하루 필요</div>
+        <div class="strong num">{{ (book.due_pages_per_day|string + 'p') if book.due_pages_per_day else '–' }}</div>
+      </div>
+      <div>
+        <div class="label">지금 속도 / 예상</div>
+        <div class="strong num">
+          {% if outlook.speed %}{{ outlook.speed }}p/일{% else %}–{% endif %}
+          {% if outlook.eta %}
+            <span class="{{ 'bad' if outlook.eta_late else 'good' }}" style="font-weight:500">→ {{ outlook.eta }}</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<div class="grid grid-hero">
+  {# ── 진도 그래프 ── #}
+  <div class="card">
+    <div class="card-head"><h2>진도</h2>
+      <span class="tiny dim">기록한 날의 도달 페이지</span></div>
+    <div class="chart" id="progress-chart"></div>
+  </div>
+
+  {# ── 책 정보 (자동 저장) ── #}
+  <div class="card">
+    <div class="card-head"><h2>책 정보</h2>
+      <span class="tiny dim">고치면 바로 저장됩니다</span></div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="e-pages">총 페이지</label>
+        <input id="e-pages" type="number" min="1" max="100000" value="{{ book.total_pages or '' }}"
+               data-autosave="total_pages" data-book="{{ book.id }}">
+      </div>
+      <div class="field">
+        <label for="e-cat">카테고리</label>
+        <input id="e-cat" list="category-list" value="{{ book.category or '' }}"
+               data-autosave="category" data-book="{{ book.id }}">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="e-start">시작일</label>
+        <input id="e-start" type="date" value="{{ book.started_on or '' }}"
+               data-autosave="started_on" data-book="{{ book.id }}">
+      </div>
+      <div class="field">
+        <label for="e-due">마감일 목표</label>
+        <input id="e-due" type="date" value="{{ book.due_date or '' }}"
+               data-autosave="due_date" data-book="{{ book.id }}">
+      </div>
+    </div>
+    {% if book.status == 'done' %}
+      <div class="field">
+        <label for="e-fin">완독일</label>
+        <input id="e-fin" type="date" value="{{ book.finished_on or '' }}"
+               data-autosave="finished_on" data-book="{{ book.id }}">
+      </div>
+    {% endif %}
+    <div class="field">
+      <label for="e-memo">메모 · 한줄평</label>
+      <textarea id="e-memo" data-autosave="memo" data-book="{{ book.id }}"
+                placeholder="읽으면서 남기고 싶은 것">{{ book.memo or '' }}</textarea>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="e-author">저자</label>
+        <input id="e-author" value="{{ book.author or '' }}"
+               data-autosave="author" data-book="{{ book.id }}">
+      </div>
+      <div class="field">
+        <label for="e-pub">출판사</label>
+        <input id="e-pub" value="{{ book.publisher or '' }}"
+               data-autosave="publisher" data-book="{{ book.id }}">
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── 세션 ── #}
+<div class="card">
+  <div class="card-head">
+    <h2>날짜별 기록</h2>
+    <span class="tiny dim">{{ sessions|length }}일</span>
+  </div>
+
+  {% if sessions %}
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th style="min-width:140px">날짜</th>
+            <th class="num">시작</th><th class="num">끝</th>
+            <th class="num">읽은 쪽</th><th class="num">분</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in sessions %}
+            <tr>
+              <td><input type="date" name="log_date" value="{{ s.log_date }}"></td>
+              <td class="num"><input type="number" name="start_page" value="{{ s.start_page }}" style="width:5rem"></td>
+              <td class="num"><input type="number" name="end_page" value="{{ s.end_page }}" style="width:5rem"></td>
+              <td class="num {{ 'bad' if s.pages < 0 }}">{{ '{:+,}'.format(s.pages) }}</td>
+              <td class="num"><input type="number" name="minutes" value="{{ s.minutes if s.minutes is not none else '' }}" style="width:4rem"></td>
+              <td class="nowrap">
+                <button class="btn-sm" data-session-save="{{ s.id }}">저장</button>
+                <button class="btn-sm btn-danger" data-session-delete="{{ s.id }}">삭제</button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="tiny dim" style="margin:.7rem 0 0">
+      기록을 고치거나 지우면 현재 페이지는 가장 최근 기록에 맞춰 다시 계산됩니다.
+    </p>
+  {% else %}
+    <p class="empty-state tiny">
+      아직 날짜별 기록이 없습니다.
+      {% if book.status == 'done' %}완독으로만 등록된 책이라 일일 통계에는 잡히지 않습니다.{% endif %}
+    </p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import { lineChart } from '/static/charts.js';
+
+  const series = {{ series|tojson }};
+  lineChart(document.getElementById('progress-chart'), {
+    points: series.map((p) => ({ x: p.date, y: p.page })),
+    total: {{ book.total_pages or 'null' }},
+    unit: 'p',
+  });
+</script>
+{% endblock %}

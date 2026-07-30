@@ -1,0 +1,84 @@
+{# 책 추가 — 알라딘 검색이 되면 검색부터, 안 되면 바로 수동 입력. #}
+<dialog id="add-modal">
+  <div class="modal-head">
+    <h2>책 추가</h2>
+    <span class="spacer"></span>
+    <button class="btn-sm" data-toggle-manual data-mode="search">직접 입력하기</button>
+    <button class="btn-sm" data-close aria-label="닫기">✕</button>
+  </div>
+
+  <div class="modal-body">
+    <p class="notice" data-aladin-notice hidden></p>
+
+    <div data-search-wrap {% if not aladin_ready %}hidden{% endif %}>
+      <div class="field-row" style="margin-bottom:.8rem">
+        <input type="search" name="aladin_q" placeholder="제목이나 저자로 검색 (예: 사피엔스)" autocomplete="off">
+        <button class="primary" style="flex:none" data-aladin-search>검색</button>
+      </div>
+      <div data-aladin-results></div>
+      {% if not aladin_ready %}
+        <p class="notice warn">
+          알라딘 TTB키가 없어 자동 검색을 쓸 수 없습니다.
+          <a href="/settings">설정</a>에서 등록하면 제목·저자·표지·페이지 수가 자동으로 채워집니다.
+        </p>
+      {% endif %}
+    </div>
+
+    <div data-manual-wrap {% if aladin_ready %}hidden{% endif %}>
+      <form data-manual>
+        <div class="field">
+          <label for="m-title">제목 *</label>
+          <input id="m-title" name="title" required maxlength="300">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="m-author">저자</label>
+            <input id="m-author" name="author">
+          </div>
+          <div class="field">
+            <label for="m-publisher">출판사</label>
+            <input id="m-publisher" name="publisher">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="m-pages">총 페이지</label>
+            <input id="m-pages" name="total_pages" type="number" min="1" max="100000" inputmode="numeric">
+          </div>
+          <div class="field">
+            <label for="m-category">카테고리</label>
+            <input id="m-category" name="category" list="category-list" placeholder="소설 / 경제 / 기술…">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="m-status">상태</label>
+            <select id="m-status" name="status">
+              <option value="wishlist">읽고싶은</option>
+              <option value="reading">읽는 중</option>
+              <option value="done">완독</option>
+              <option value="paused">중단</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="m-due">마감일 (선택)</label>
+            <input id="m-due" name="due_date" type="date">
+          </div>
+        </div>
+        <div class="field">
+          <label for="m-isbn">ISBN (선택)</label>
+          <input id="m-isbn" name="isbn13" inputmode="numeric">
+        </div>
+        <input type="hidden" name="cover_url">
+        <div class="modal-foot" style="padding-left:0;padding-right:0;border:0">
+          <button type="button" data-close>취소</button>
+          <button type="submit" class="primary">서재에 담기</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</dialog>
+
+<datalist id="category-list">
+  {% for c in categories or [] %}<option value="{{ c }}">{% endfor %}
+</datalist>

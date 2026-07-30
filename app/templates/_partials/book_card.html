@@ -1,0 +1,58 @@
+{# 읽는 중인 책 카드. 여기 입력창이 곧 세션 기록이다. #}
+<div class="book-tile" data-book-card>
+  {% if book.cover_url %}
+    <img class="cover" src="{{ book.cover_url }}" alt="" loading="lazy">
+  {% else %}
+    <div class="cover cover-ph">📕</div>
+  {% endif %}
+
+  <div class="body">
+    <a class="book-title" href="/books/{{ book.id }}" title="{{ book.title }}">{{ book.title }}</a>
+    <div class="tiny dim" style="margin-bottom:.45rem">{{ book.author or '저자 미상' }}</div>
+
+    {% if book.has_total %}
+      <div class="meter{% if book.due_overdue %} late{% endif %}">
+        <span style="width: {{ book.progress_pct }}%"></span>
+      </div>
+      <div class="tiny dim" style="display:flex;gap:.4rem;margin-top:.3rem">
+        <span class="num"><span data-now>{{ '{:,}'.format(book.current_page) }}</span> / {{ '{:,}'.format(book.total_pages) }}p</span>
+        <span data-pct class="num">{{ book.progress_pct }}%</span>
+      </div>
+    {% else %}
+      <div class="tiny dim">
+        <span class="num" data-now>{{ '{:,}'.format(book.current_page) }}</span>p 읽음 ·
+        <a href="/books/{{ book.id }}">총 페이지 입력</a>
+      </div>
+    {% endif %}
+
+    {% if book.due_date %}
+      <div class="tiny" style="margin-top:.35rem">
+        {% if book.due_overdue %}
+          <span class="badge late">마감 {{ -book.due_days_left }}일 지남</span>
+        {% elif book.due_pages_per_day %}
+          <span class="dim">마감까지 {{ book.due_days_left }}일 ·
+          하루 <span class="strong">{{ book.due_pages_per_day }}p</span> 필요</span>
+        {% else %}
+          <span class="dim">마감 {{ book.due_date }}</span>
+        {% endif %}
+        {% if book.outlook and book.outlook.eta %}
+          <div class="dim" style="margin-top:.15rem">
+            지금 속도({{ book.outlook.speed }}p/일)면
+            <span class="{{ 'bad' if book.outlook.eta_late else 'good' }}">{{ book.outlook.eta }}</span> 완독 예상
+          </div>
+        {% endif %}
+      </div>
+    {% elif book.outlook and book.outlook.eta %}
+      <div class="tiny dim" style="margin-top:.35rem">
+        지금 속도({{ book.outlook.speed }}p/일)면 {{ book.outlook.eta }} 완독 예상
+      </div>
+    {% endif %}
+
+    <form class="progress-form" data-progress="{{ book.id }}">
+      <input type="number" name="current_page" min="0" inputmode="numeric"
+             value="{{ book.current_page }}" aria-label="{{ book.title }} 현재 페이지">
+      <span class="of">쪽까지</span>
+      <button type="submit" class="btn-sm primary">기록</button>
+    </form>
+  </div>
+</div>

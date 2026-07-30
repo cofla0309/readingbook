@@ -1,0 +1,36 @@
+{# 마지막 쪽에 닿으면 뜬다. 자동으로 완독 처리하지 않고 물어본다. #}
+<dialog id="finish-modal">
+  <div class="modal-head">
+    <h2>다 읽으셨나요?</h2>
+    <span class="spacer"></span>
+    <button class="btn-sm" data-close aria-label="닫기">✕</button>
+  </div>
+
+  <div class="modal-body">
+    <p class="sub" style="margin-top:0">
+      <span class="strong" data-finish-title></span> 의 마지막 쪽에 도달했습니다.
+    </p>
+
+    <div class="field">
+      <label>별점</label>
+      <div class="stars" data-value="0">
+        <button type="button">☆</button><button type="button">☆</button>
+        <button type="button">☆</button><button type="button">☆</button>
+        <button type="button">☆</button>
+      </div>
+    </div>
+    <div class="field">
+      <label for="f-date">완독일</label>
+      <input id="f-date" type="date" name="finished_on">
+    </div>
+    <div class="field">
+      <label for="f-memo">한줄평 (선택)</label>
+      <textarea id="f-memo" name="memo" placeholder="기억에 남은 것"></textarea>
+    </div>
+  </div>
+
+  <div class="modal-foot">
+    <button data-close>아직 아니에요</button>
+    <button class="primary" data-finish-save>완독으로 기록</button>
+  </div>
+</dialog>

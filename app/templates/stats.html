@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}통계 · 독서 기록{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>통계</h1>
+  <span class="spacer"></span>
+  <form method="get" action="/stats">
+    <select name="year" onchange="this.form.submit()" style="width:auto">
+      {% for y in years %}
+        <option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}년</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+{# ── 요약 ── #}
+<div class="card">
+  <div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:flex-end">
+    <div>
+      <div class="label">{{ year }}년 완독</div>
+      <div class="hero-figure">{{ this_year.books_done }}<span class="unit">권</span></div>
+      {% if yearly.target %}
+        <div class="tiny dim">목표 {{ yearly.target }}권 · {{ yearly.pct }}%</div>
+      {% endif %}
+    </div>
+
+    <div style="flex:1;min-width:260px" class="grid grid-3">
+      <div>
+        <div class="label">읽은 페이지</div>
+        <div class="strong num" style="font-size:1.25rem">{{ '{:,}'.format(this_year.session_pages) }}p</div>
+        <div class="tiny dim">기록된 {{ this_year.reading_days }}일</div>
+      </div>
+      <div>
+        <div class="label">하루 평균</div>
+        <div class="strong num" style="font-size:1.25rem">{{ '{:,}'.format(this_year.avg_pages_per_reading_day) }}p</div>
+        <div class="tiny dim">읽은 날 기준</div>
+      </div>
+      <div>
+        <div class="label">연속</div>
+        <div class="strong num" style="font-size:1.25rem">{{ streak.current }}일</div>
+        <div class="tiny dim">최장 {{ streak.longest }}일</div>
+      </div>
+      <div>
+        <div class="label">읽은 시간</div>
+        <div class="strong num" style="font-size:1.25rem">
+          {% if this_year.session_minutes %}{{ (this_year.session_minutes // 60) }}시간 {{ this_year.session_minutes % 60 }}분
+          {% else %}–{% endif %}
+        </div>
+        <div class="tiny dim">기록한 것만</div>
+      </div>
+      <div>
+        <div class="label">평균 별점</div>
+        <div class="strong num" style="font-size:1.25rem">{{ this_year.avg_rating or '–' }}</div>
+      </div>
+      <div>
+        <div class="label">완독까지</div>
+        <div class="strong num" style="font-size:1.25rem">
+          {% if this_year.avg_days_to_finish %}{{ this_year.avg_days_to_finish }}일{% else %}–{% endif %}
+        </div>
+        <div class="tiny dim">평균 소요</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tiny dim" style="border-top:1px solid var(--grid);margin-top:1rem;padding-top:.7rem">
+    전체 기간 누적: 완독 {{ all_time.books_done }}권 ·
+    읽은 페이지 {{ '{:,}'.format(all_time.session_pages) }}p ·
+    기록한 날 {{ all_time.reading_days }}일
+  </div>
+</div>
+
+{# ── 월별 ── #}
+<div class="grid grid-2">
+  <div class="card">
+    <div class="card-head"><h2>월별 읽은 페이지</h2></div>
+    <div class="chart" id="monthly-pages"></div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h2>월별 완독 권수</h2></div>
+    <div class="chart" id="monthly-books"></div>
+  </div>
+</div>
+
+{# ── 잔디 ── #}
+<div class="card">
+  <div class="card-head">
+    <h2>{{ year }}년 독서 달력</h2>
+    <span class="spacer"></span>
+    <span class="heat-legend" id="heat-legend"></span>
+  </div>
+  <div class="chart" id="heatmap"></div>
+  <p class="tiny dim" style="margin:.6rem 0 0">칸 위에 올리면 그날 읽은 페이지가 나옵니다.</p>
+</div>
+
+{# ── 최근 90일 ── #}
+<div class="card">
+  <div class="card-head"><h2>최근 90일 페이지</h2></div>
+  <div class="chart" id="daily-chart"></div>
+</div>
+
+{# ── 카테고리 · 별점 ── #}
+<div class="grid grid-2">
+  <div class="card">
+    <div class="card-head"><h2>카테고리</h2><span class="tiny dim">완독 기준</span></div>
+    <div class="chart" id="category-chart"></div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h2>별점 분포</h2></div>
+    <div class="chart" id="rating-chart"></div>
+  </div>
+</div>
+
+{# ── 순위 ── #}
+<div class="grid grid-2">
+  <div class="card">
+    <div class="card-head"><h2>많이 읽은 저자</h2></div>
+    {% if authors %}
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>저자</th><th class="num">권</th><th class="num">페이지</th><th class="num">별점</th></tr></thead>
+          <tbody>
+            {% for a in authors %}
+              <tr>
+                <td>{{ a.name }}</td>
+                <td class="num">{{ a.books }}</td>
+                <td class="num">{{ '{:,}'.format(a.pages) }}</td>
+                <td class="num dim">{{ a.avg_rating or '–' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}<p class="empty-state tiny">완독한 책이 쌓이면 나옵니다.</p>{% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>출판사</h2></div>
+    {% if publishers %}
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>출판사</th><th class="num">권</th><th class="num">페이지</th></tr></thead>
+          <tbody>
+            {% for p in publishers %}
+              <tr>
+                <td>{{ p.name }}</td>
+                <td class="num">{{ p.books }}</td>
+                <td class="num">{{ '{:,}'.format(p.pages) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}<p class="empty-state tiny">완독한 책이 쌓이면 나옵니다.</p>{% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import { columnChart, barChart, heatmap, heatLegend } from '/static/charts.js';
+
+  const c = {{ charts|tojson }};
+
+  columnChart(document.getElementById('monthly-pages'), {
+    data: c.monthly, value: 'pages', label: 'label', unit: 'p',
+    tooltip: (d) => `${d.label}<br><span class="t-val">${d.pages.toLocaleString('ko-KR')}p</span>` +
+                    (d.minutes ? ` · ${d.minutes}분` : ''),
+  });
+
+  columnChart(document.getElementById('monthly-books'), {
+    data: c.monthly, value: 'books', label: 'label', unit: '권',
+    tooltip: (d) => `${d.label}<br><span class="t-val">${d.books}권 완독</span>`,
+  });
+
+  heatmap(document.getElementById('heatmap'), { year: c.year, values: c.heatmap });
+  heatLegend(document.getElementById('heat-legend'));
+
+  columnChart(document.getElementById('daily-chart'), {
+    data: c.daily, value: 'pages', label: 'label', unit: 'p', labelEvery: 10, height: 170,
+    tooltip: (d) => `${d.date}<br><span class="t-val">${d.pages.toLocaleString('ko-KR')}p</span>`,
+  });
+
+  barChart(document.getElementById('category-chart'), {
+    data: c.categories, value: 'books', label: 'name', unit: '권',
+    tooltip: (d) => `${d.name}<br><span class="t-val">${d.books}권</span> · ${d.pages.toLocaleString('ko-KR')}p`,
+  });
+
+  columnChart(document.getElementById('rating-chart'), {
+    data: c.ratings.map((r) => ({ label: '★'.repeat(r.rating), books: r.books, rating: r.rating })),
+    value: 'books', label: 'label', unit: '권', height: 170, highlightMax: false,
+    tooltip: (d) => `★ ${d.rating}점<br><span class="t-val">${d.books}권</span>`,
+  });
+</script>
+{% endblock %}
